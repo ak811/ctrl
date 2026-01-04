@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.swp
+.DS_Store
+outputs/
+videos/
+logs/
+models/
+checkpoints/
+plots/
+tb/
