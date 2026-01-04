@@ -1,4 +1,4 @@
-# Bridging Tasks: Cross-Model Knowledge Sharing (Deep RL Project)
+# CTRL: Cross-Task Reinforcement Learning
 
 We study **cross-task knowledge reuse** in deep reinforcement learning using three complementary paradigms:
 
