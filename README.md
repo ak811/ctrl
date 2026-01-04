@@ -1,67 +1,25 @@
-# GTLRL: Generalized Transfer, Meta, and Continual Learning (Modular RL Project)
+# Bridging Tasks: Cross-Model Knowledge Sharing (Deep RL Project)
 
-This is a cleaned-up, modular version of your original coursework codebase.  
-It’s organized as a real Python package (`src/gtlrl`) with three tracks:
+We study **cross-task knowledge reuse** in deep reinforcement learning using three complementary paradigms:
 
-- **Transfer Learning (PPO / Stable-Baselines3)** on **Pong**, **Snake**, **PuckWorld**
-- **Meta-Learning (first-order MAML/Reptile-style)** across **Snake**, **PuckWorld**, **Pong**
-- **Continual Learning** (Transfer baselines + MAML + EWC) on **sine-wave regression tasks**
+- **Transfer Learning**: pretrain on a source task, then adapt to a target task
+- **Meta-Learning**: learn an initialization that adapts quickly (few-shot) to a task
+- **Continual Learning**: learn tasks sequentially while reducing catastrophic forgetting
 
-Because humans love chaos, the original repo mixed `gym`, `gymnasium`, duplicated env code, and had at least one
-file with corrupted characters. This version fixes those things and puts everything in one coherent layout.
+Environments used:
+- **Snake** (custom)
+- **PuckWorld** (custom)
+- **Pong** (Atari: `ALE/Pong-v5`)
 
----
-
-## Project layout
-
-```
-gtlrl_modular_project/
-├─ pyproject.toml
-├─ requirements.txt
-├─ README.md
-└─ src/
-   └─ gtlrl/
-      ├─ __init__.py
-      ├─ common/
-      │  ├─ seed.py
-      │  └─ io.py
-      ├─ envs/
-      │  ├─ snake.py
-      │  ├─ puckworld.py
-      │  └─ pong.py
-      ├─ continual/
-      │  ├─ config.py
-      │  ├─ models.py
-      │  ├─ data.py
-      │  ├─ transfer.py
-      │  ├─ maml_sine.py
-      │  ├─ ewc.py
-      │  ├─ plots.py
-      │  └─ run.py
-      ├─ meta/
-      │  ├─ config.py
-      │  ├─ policy.py
-      │  ├─ reptile.py
-      │  ├─ utils.py
-      │  └─ train.py
-      └─ transfer/
-         ├─ config.py
-         ├─ extractor.py
-         ├─ callbacks.py
-         ├─ env_factory.py
-         └─ train.py
-```
+Plus a controlled **sine-wave regression benchmark** (for EWC + toy MAML sanity checks).
 
 ---
 
 ## Setup
 
-### 1) Create a virtual environment (recommended)
+### 1) Create and activate a venv
 ```bash
 python -m venv .venv
-# Windows:
-.\.venv\Scripts\activate
-# macOS/Linux:
 source .venv/bin/activate
 ```
 
@@ -70,83 +28,76 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3) Atari ROMs (Pong)
+### 3) Install Pong ROMs
+Gymnasium Atari typically needs ROM install/acceptance.
 
-This project uses **Gymnasium Atari**. You have two common options:
-
-**Option A (recommended):**
+Recommended:
 ```bash
 pip install "gymnasium[atari,accept-rom-license]"
 ```
 
-**Option B (AutoROM):**
+Or AutoROM:
 ```bash
-pip install autorom[accept-rom-license]
+pip install "autorom[accept-rom-license]"
 AutoROM --accept-license
 ```
 
-Quick sanity check:
+Sanity check:
 ```bash
 python -c "import gymnasium as gym; env=gym.make('ALE/Pong-v5'); env.reset(); print('Pong OK')"
 ```
 
 ---
 
-## Transfer learning (PPO)
+## Transfer learning (PPO, Stable-Baselines3)
 
-Train PPO on a single environment using the same CNN feature extractor for all games:
+Train PPO on one environment:
 
 ```bash
-python -m gtlrl.transfer.train --env pong --timesteps 1000000
-python -m gtlrl.transfer.train --env snake --timesteps 500000
-python -m gtlrl.transfer.train --env puckworld --timesteps 500000
+python -m bridging_tasks.transfer.train --env pong --timesteps 1000000
+python -m bridging_tasks.transfer.train --env snake --timesteps 500000
+python -m bridging_tasks.transfer.train --env puckworld --timesteps 500000
 ```
 
-Outputs go to `outputs/transfer/<env>/<timestamp>/` (models, plots, TensorBoard logs).
+Outputs:
+- `outputs/transfer/<env>/<timestamp>/`
+  - saved SB3 model (`.zip`)
+  - reward curve plot
+  - tensorboard logs
 
 ---
 
-## Meta-learning (first-order MAML/Reptile-style)
+## Meta-learning (first-order RL meta loop)
 
-This module implements a *first-order* meta-learning loop that learns a good initialization per-environment
-(you can call it “Reptile” or “FOMAML-ish” depending on how charitable you’re feeling).
+The original project report frames meta-learning as MAML-style adaptation.
+In practice, implementing full second-order MAML in RL is expensive and brittle, so this repo includes a
+**first-order** meta-learning loop (Reptile-style) that still learns an initialization that adapts quickly.
 
 ```bash
-python -m gtlrl.meta.train --iterations 200 --k_shots 5
+python -m bridging_tasks.meta.train --iterations 200 --k_shots 5
 ```
 
-Outputs go to `outputs/meta/<timestamp>/`.
+Outputs:
+- `outputs/meta/<timestamp>/` (plots + init checkpoints)
 
 ---
 
-## Continual learning (sine tasks)
+## Continual learning (EWC on sine benchmark)
 
 Runs:
-- transfer baselines (scratch/freeze/finetune) across sine tasks
-- sine-wave MAML
+- sine transfer baselines (scratch / freeze / finetune)
+- toy sine MAML
 - EWC forgetting matrix
 
 ```bash
-python -m gtlrl.continual.run --all
+python -m bridging_tasks.continual.run --all
 ```
 
-Outputs go to `outputs/continual/<timestamp>/`.
-
----
-
-## Notes / Differences vs your original code
-
-- Fixed broken imports and corrupted text in `meta_learning/maml.py`.
-- Removed duplicated environment definitions and centralized them under `gtlrl/envs`.
-- Standardized to **gymnasium** APIs (`reset -> (obs, info)`, `step -> (obs, reward, terminated, truncated, info)`).
-- Added clean CLI entrypoints via `python -m ...` modules.
-- Added consistent output directories and simple plotting.
-- The “meta-learning RL” portion in the original repo was not actually sharing a single initialization across tasks
-  (because architectures and action spaces differed). This version makes that explicit and uses a first-order update per env.
+Outputs:
+- `outputs/continual/<timestamp>/`
 
 ---
 
 ## License
 
-Educational / research use. If you publish, cite the libraries you used and don’t commit ROMs to GitHub unless
-you enjoy getting emails from lawyers.
+MIT.
