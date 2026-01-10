@@ -100,4 +100,4 @@ Outputs:
 
 ## License
 
-MIT.
+MIT (See `LICENSE`).
